@@ -10,13 +10,14 @@ from smt.surrogate_models.surrogate_model import SurrogateModel
 
 try:
     import torch
+
     RBFGEN_AVAILABLE = True
 except ImportError:
     RBFGEN_AVAILABLE = False
 
 
 def gaussian_rbf(r, eps):
-    return np.exp(-(eps * r)**2)
+    return np.exp(-((eps * r) ** 2))
 
 
 def rbf_features(X, C, eps):
@@ -42,6 +43,7 @@ def median_eps(X):
     vals = D[np.triu_indices_from(D, k=1)]
     vals = vals[vals > 0]
     return 1.0 / (np.sqrt(2) * (np.median(vals) if vals.size else 1.0))
+
 
 # =========================
 # LHS sampler
@@ -142,7 +144,7 @@ class NNRichRBF(SurrogateModel):
         if centers_dist == "linspace":
             # Grid of centers
             # k^d approx m_centers => k = m_centers^(1/d)
-            k = int(np.round(m_centers**(1/d)))
+            k = int(np.round(m_centers ** (1 / d)))
             # Ensure at least 2 points per dim if m_centers is large enough, else k=1
             if k < 2:
                 k = 2
@@ -150,17 +152,21 @@ class NNRichRBF(SurrogateModel):
             # Generate 1D linspaces
             ranges = [np.linspace(lo[i], hi[i], k) for i in range(d)]
             # Meshgrid
-            mesh = np.meshgrid(*ranges, indexing='ij')
+            mesh = np.meshgrid(*ranges, indexing="ij")
             # Flatten to (N, d)
             C = np.stack([m.flatten() for m in mesh], axis=-1)
             # Update m_centers to actual number of points
-            m_centers = C.shape[0] # Not strictly necessary to update option, but C is what matters
+            m_centers = C.shape[
+                0
+            ]  # Not strictly necessary to update option, but C is what matters
         else:
             # Random uniform, but include training points
             n_random = m_centers - ntr
             if n_random > 0:
                 # C_rand = lo + (hi - lo) * rng.random((n_random, d))
-                C_rand = lhs(n_random, d, lo, hi, rng)  # use latin hypercube sampling to generate the rbf centers
+                C_rand = lhs(
+                    n_random, d, lo, hi, rng
+                )  # use latin hypercube sampling to generate the rbf centers
                 C = np.vstack([Xtr, C_rand])
             else:
                 # If m_centers is less than ntr, we just use Xtr
@@ -190,7 +196,9 @@ class NNRichRBF(SurrogateModel):
         if N.shape[1] == 0:
             # Increase centers and retry
             new_m_centers = int(1.5 * m_centers)
-            self._build_rbf_nullspace(Xtr, ytr, m_centers=new_m_centers, eps=eps, rng=rng)
+            self._build_rbf_nullspace(
+                Xtr, ytr, m_centers=new_m_centers, eps=eps, rng=rng
+            )
 
     def _predict_values(self, x):
         """

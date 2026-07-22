@@ -10,11 +10,13 @@ try:
     import torch
     import torch.nn as nn
     import torch.optim as optim
+
     RBFGEN_AVAILABLE = True
     BaseGenerator = nn.Module
 except ImportError:
     RBFGEN_AVAILABLE = False
     BaseGenerator = object
+
 
 class Generator(BaseGenerator):
     def __init__(self, zdim, rdim, hidden=64):
@@ -25,9 +27,11 @@ class Generator(BaseGenerator):
 
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(zdim, hidden), nn.ReLU(),
-            nn.Linear(hidden, hidden), nn.ReLU(),
-            nn.Linear(hidden, rdim)
+            nn.Linear(zdim, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, rdim),
         )
 
         # Initialize weights and biases with values drawn from uniform distribution
@@ -53,7 +57,12 @@ class RBFGen(SurrogateModel):
         super()._initialize()
         declare = self.options.declare
 
-        declare("rbf_surrogate", None, types=(NNRichRBF, type(None)), desc="Pre-constructed rich RBF surrogate object")
+        declare(
+            "rbf_surrogate",
+            None,
+            types=(NNRichRBF, type(None)),
+            desc="Pre-constructed rich RBF surrogate object",
+        )
         declare(
             "rbf_m_centers",
             None,
@@ -78,13 +87,24 @@ class RBFGen(SurrogateModel):
             values=("random", "linspace"),
             desc="Distribution of RBF centers: 'random' (uniform random) or 'linspace' (regular grid).",
         )
-        declare("learning_rate", 1e-3, types=(float), desc="Learning rate for the neural network optimizer")
+        declare(
+            "learning_rate",
+            1e-3,
+            types=(float),
+            desc="Learning rate for the neural network optimizer",
+        )
         declare("alpha_scale", 1.0, types=(float), desc="Scaling factor for alpha")
         declare("epochs", 1000, types=(int), desc="Number of training epochs")
         declare("batch_size", 64, types=(int), desc="Batch size for training")
-        declare("latent_space_dim", 12, types=(int), desc="Dimension of the latent space")
-        declare("num_eval_pts", 100, types=(int), desc="Number of evaluation points for nullspace")
-
+        declare(
+            "latent_space_dim", 12, types=(int), desc="Dimension of the latent space"
+        )
+        declare(
+            "num_eval_pts",
+            100,
+            types=(int),
+            desc="Number of evaluation points for nullspace",
+        )
 
         self.supports["variances"] = True
 
@@ -111,7 +131,10 @@ class RBFGen(SurrogateModel):
             rbf_centers_dist = self.options["rbf_centers_distribution"]
 
             rbf = NNRichRBF(
-                m_centers=rbf_m_centers, d0=rbf_d0, rng_seed=rbf_rng_seed, centers_distribution=rbf_centers_dist
+                m_centers=rbf_m_centers,
+                d0=rbf_d0,
+                rng_seed=rbf_rng_seed,
+                centers_distribution=rbf_centers_dist,
             )
             # If creating a fresh one, we need to train it using our data
             # xt, yt are available in self.training_points after set_training_values is called
@@ -144,7 +167,9 @@ class RBFGen(SurrogateModel):
         for ep in range(epochs):
             latent_vars = torch.randn(batchsize, latent_dim)
             alpha = self.generator(latent_vars)
-            W = (rbf.data_interp_coeffs + (alpha @ rbf.nullspace.T) * alpha_scale) # (B, m)
+            W = (
+                rbf.data_interp_coeffs + (alpha @ rbf.nullspace.T) * alpha_scale
+            )  # (B, m)
 
             total_loss = torch.tensor(0.0)
 
@@ -166,15 +191,25 @@ class RBFGen(SurrogateModel):
             total_loss.backward()
             self.opt_generator.step()
 
-            if self.options["print_global"] and ((ep + 1) % 100 == 0 or ep == epochs - 1):
-                loss_info = " | ".join([f"{name}: {val:.4e}" for name, val in current_losses.items()])
-                print(f"Epoch {ep+1:5d}/{epochs} | Total Loss: {total_loss.item():.4e} | {loss_info}")
+            if self.options["print_global"] and (
+                (ep + 1) % 100 == 0 or ep == epochs - 1
+            ):
+                loss_info = " | ".join(
+                    [f"{name}: {val:.4e}" for name, val in current_losses.items()]
+                )
+                print(
+                    f"Epoch {ep + 1:5d}/{epochs} | Total Loss: {total_loss.item():.4e} | {loss_info}"
+                )
 
         # Sample ensemble of weights
         with torch.no_grad():
             z = torch.randn(K_ensemble, latent_dim)
             alpha = self.generator(z)
-            W = (rbf.data_interp_coeffs + (alpha @ rbf.nullspace.T) * alpha_scale).cpu().numpy()
+            W = (
+                (rbf.data_interp_coeffs + (alpha @ rbf.nullspace.T) * alpha_scale)
+                .cpu()
+                .numpy()
+            )
 
         self.network_weights = W
 

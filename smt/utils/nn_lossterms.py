@@ -1,4 +1,5 @@
 import numpy as np
+
 try:
     import torch
     from smt.utils.nn_rich_rbf import (
@@ -12,7 +13,7 @@ except ImportError:
 
 
 class LossTerm:
-    def __init__(self, x_train, loss_term_weight=1.):
+    def __init__(self, x_train, loss_term_weight=1.0):
         self.x_train = x_train
         self.loss_term_weight = loss_term_weight
 
@@ -37,7 +38,7 @@ class LossTerm:
             rng = np.random.default_rng(1)
 
         if self.x_train is None:
-             raise ValueError("x_train must be set to sample within convex hull.")
+            raise ValueError("x_train must be set to sample within convex hull.")
 
         n_samples, n_dim = self.x_train.shape
 
@@ -62,7 +63,7 @@ class LossTerm:
         # Compute convex combination: sum(w_i * p_i)
         # Shape: (n_pts, n_dim)
         # einsum: 'nk, nkd -> nd'
-        points = np.einsum('nk,nkd->nd', weights, selected_points)
+        points = np.einsum("nk,nkd->nd", weights, selected_points)
         return points
 
 
@@ -72,7 +73,10 @@ class SliceBasedPriorLossTerm(LossTerm):
     (e.g., along 1D slices). The loss uses the Wasserstein distance
     between the modeled ensemble's normal distribution and the user's prior normal distribution.
     """
-    def __init__(self, x_train, prior_points, prior_means, prior_stds, loss_term_weight=1.):
+
+    def __init__(
+        self, x_train, prior_points, prior_means, prior_stds, loss_term_weight=1.0
+    ):
         super().__init__(x_train, loss_term_weight)
         self.prior_points = np.atleast_2d(prior_points)
         self.prior_means = np.atleast_1d(prior_means)
@@ -84,8 +88,10 @@ class SliceBasedPriorLossTerm(LossTerm):
 
     def setup(self, rbf_surrogate):
         self.Phi_prior = torch.tensor(
-            rbf_features(self.prior_points, rbf_surrogate.rbf_centers, rbf_surrogate.d0),
-            dtype=torch.float32
+            rbf_features(
+                self.prior_points, rbf_surrogate.rbf_centers, rbf_surrogate.d0
+            ),
+            dtype=torch.float32,
         )
         self.prior_means_t = torch.tensor(self.prior_means, dtype=torch.float32)
         self.prior_vars_t = torch.tensor(self.prior_stds**2, dtype=torch.float32)
@@ -101,8 +107,10 @@ class SliceBasedPriorLossTerm(LossTerm):
 
         # Use Huber loss. This acts like the Wasserstein distance near convergence
         # but prevents explosive quadratic gradients during initial epochs.
-        loss_mu = torch.nn.functional.huber_loss(mu_1, mu_0, delta=1.0, reduction='sum')
-        loss_std = torch.nn.functional.huber_loss(std_1, std_0, delta=1.0, reduction='sum')
+        loss_mu = torch.nn.functional.huber_loss(mu_1, mu_0, delta=1.0, reduction="sum")
+        loss_std = torch.nn.functional.huber_loss(
+            std_1, std_0, delta=1.0, reduction="sum"
+        )
 
         return loss_mu + loss_std
 
@@ -114,10 +122,18 @@ class MonotonicityLossTerm(LossTerm):
     surrogate at various points and applies a penalty if the gradient contradicts
     the given target sign (e.g., enforcing strictly increasing or strictly decreasing relationships).
     """
-    def __init__(self, x_train, sign=1, mono_pts_per_input_dim=5,
-                 random_base_points=False, inside_convex_hull=False,
-                 input_indices=None, loss_term_weight=1.,
-                 **kwargs):
+
+    def __init__(
+        self,
+        x_train,
+        sign=1,
+        mono_pts_per_input_dim=5,
+        random_base_points=False,
+        inside_convex_hull=False,
+        input_indices=None,
+        loss_term_weight=1.0,
+        **kwargs,
+    ):
         super().__init__(x_train, loss_term_weight)
         self.mono_pts_per_input_dim = mono_pts_per_input_dim
         self.random_base_points = random_base_points
@@ -139,7 +155,11 @@ class MonotonicityLossTerm(LossTerm):
         lo = self.x_train.min(axis=0)
         hi = self.x_train.max(axis=0)
 
-        indices = self.input_indices if self.input_indices is not None else range(self.x_train.shape[1])
+        indices = (
+            self.input_indices
+            if self.input_indices is not None
+            else range(self.x_train.shape[1])
+        )
 
         X_list = []
         dims_list = []
@@ -147,12 +167,18 @@ class MonotonicityLossTerm(LossTerm):
         for i in indices:
             if self.random_base_points:
                 if self.inside_convex_hull:
-                     base = self.sample_within_convex_hull(self.mono_pts_per_input_dim, rng=rng)
+                    base = self.sample_within_convex_hull(
+                        self.mono_pts_per_input_dim, rng=rng
+                    )
                 else:
-                     base = lo + (hi - lo) * rng.random((self.mono_pts_per_input_dim, self.x_train.shape[1]))
+                    base = lo + (hi - lo) * rng.random(
+                        (self.mono_pts_per_input_dim, self.x_train.shape[1])
+                    )
             else:
-                 idx = rng.integers(0, len(self.x_train), size=self.mono_pts_per_input_dim)
-                 base = self.x_train[idx].copy()
+                idx = rng.integers(
+                    0, len(self.x_train), size=self.mono_pts_per_input_dim
+                )
+                base = self.x_train[idx].copy()
 
             X_list.append(base)
             dims_list.append(np.full(self.mono_pts_per_input_dim, i))
@@ -161,7 +187,9 @@ class MonotonicityLossTerm(LossTerm):
         self.target_dims_list = np.concatenate(dims_list)
 
     def eval_rbf_grad_in_mono_pts(self, rbf_centers, rbf_d0):
-        grad_Phi = rbf_features_grad(self.base_points_list, rbf_centers, rbf_d0, self.target_dims_list)
+        grad_Phi = rbf_features_grad(
+            self.base_points_list, rbf_centers, rbf_d0, self.target_dims_list
+        )
         self.rbf_grad_evals = torch.tensor(grad_Phi, dtype=torch.float32)
 
     def __call__(self, W, beta=100):
@@ -177,7 +205,10 @@ class PositivityLossTerm(LossTerm):
     (or within the convex hull of the training data) and applies a penalty for any point
     where the predicted output is less than zero.
     """
-    def __init__(self, x_train, n_pos_pts=128, loss_term_weight=1., inside_convex_hull=False):
+
+    def __init__(
+        self, x_train, n_pos_pts=128, loss_term_weight=1.0, inside_convex_hull=False
+    ):
         super().__init__(x_train, loss_term_weight)
         self.n_pos_pts = n_pos_pts
         self.inside_convex_hull = inside_convex_hull
@@ -193,18 +224,26 @@ class PositivityLossTerm(LossTerm):
             rng_seed = np.random.default_rng(5)
 
         if self.inside_convex_hull:
-            self.pos_probe_pts = self.sample_within_convex_hull(self.n_pos_pts, rng=rng_seed)
+            self.pos_probe_pts = self.sample_within_convex_hull(
+                self.n_pos_pts, rng=rng_seed
+            )
 
         else:
             lo = self.x_train.min(axis=0)
             hi = self.x_train.max(axis=0)
-            self.pos_probe_pts = lo + (hi - lo) * rng_seed.random((self.n_pos_pts, self.x_train.shape[1]))
+            self.pos_probe_pts = lo + (hi - lo) * rng_seed.random(
+                (self.n_pos_pts, self.x_train.shape[1])
+            )
 
     def eval_rbf_basis_in_pos_probes(self, rbf_centers, rbf_d0):
         if self.pos_probe_pts is None:
-            raise ValueError("Positivity probes need to be built before they can be evaluated")
+            raise ValueError(
+                "Positivity probes need to be built before they can be evaluated"
+            )
 
-        self.rbf_evals = torch.tensor(rbf_features(self.pos_probe_pts, rbf_centers, rbf_d0), dtype=torch.float32)
+        self.rbf_evals = torch.tensor(
+            rbf_features(self.pos_probe_pts, rbf_centers, rbf_d0), dtype=torch.float32
+        )
 
     def __call__(self, W, beta=100):
         f_pos = W @ self.rbf_evals.T
