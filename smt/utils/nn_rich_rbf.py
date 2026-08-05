@@ -1,5 +1,5 @@
 """
-Contains the RBFSurrogate class.
+Contains the NNRichRBF class.
 """
 
 import numpy as np
@@ -105,7 +105,6 @@ class NNRichRBF(SurrogateModel):
         self.d0 = None
         self.data_interp_coeffs = None
         self.nullspace = None
-        self.rbf_evals = None
 
     def _train(self):
         """
@@ -181,7 +180,6 @@ class NNRichRBF(SurrogateModel):
 
         # Compute features
         Phi = rbf_features(Xtr, C, eps)
-        self.rbf_evals = Phi
 
         # Solve for particular solution (weights)
         # lstsq returns (x, residues, rank, s)

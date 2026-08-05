@@ -6,10 +6,8 @@ try:
         rbf_features,
         rbf_features_grad,
     )
-
-    RBFGEN_AVAILABLE = True
 except ImportError:
-    RBFGEN_AVAILABLE = False
+    pass
 
 
 class LossTerm:
@@ -83,8 +81,6 @@ class SliceBasedPriorLossTerm(LossTerm):
         self.prior_stds = np.atleast_1d(prior_stds)
 
         self.Phi_prior = None
-        self.prior_means_t = None
-        self.prior_vars_t = None
 
     def setup(self, rbf_surrogate):
         self.Phi_prior = torch.tensor(
@@ -93,8 +89,6 @@ class SliceBasedPriorLossTerm(LossTerm):
             ),
             dtype=torch.float32,
         )
-        self.prior_means_t = torch.tensor(self.prior_means, dtype=torch.float32)
-        self.prior_vars_t = torch.tensor(self.prior_stds**2, dtype=torch.float32)
 
     def __call__(self, W):
         f = W @ self.Phi_prior.T

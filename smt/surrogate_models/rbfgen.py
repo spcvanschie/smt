@@ -114,9 +114,6 @@ class RBFGen(SurrogateModel):
 
         self.loss_terms = []
 
-        # We'll need to store training data because add_... methods use it
-        self.x_train = None
-        self.y_train = None
 
     def _train(self, K_ensemble=150):
         """
@@ -144,7 +141,6 @@ class RBFGen(SurrogateModel):
             rbf.train()
             self.options["rbf_surrogate"] = rbf
 
-        self.x_train, self.y_train = self.training_points[None][0]
 
         # Setup loss terms
         for loss_term in self.loss_terms:
