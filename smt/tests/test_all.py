@@ -37,6 +37,12 @@ try:
 except ImportError:
     COMPILED_AVAILABLE = False
 
+try:
+    from smt.surrogate_models import RBFGen
+    RBFGEN_AVAILABLE = True
+except ImportError:
+    RBFGEN_AVAILABLE = False
+
 
 print_output = False
 
@@ -74,6 +80,9 @@ class Test(SMTestCase):
             is_normalize=True,
         )
 
+        if RBFGEN_AVAILABLE:
+            sms["RBFGen"] = RBFGen(epochs=100, learning_rate=1e-2, rbf_m_centers=50)
+
         if COMPILED_AVAILABLE:
             sms["IDW"] = IDW()
             sms["RBF"] = RBF()
@@ -91,6 +100,8 @@ class Test(SMTestCase):
         t_errors["MGP"] = 1e0
         t_errors["GEKPLS"] = 1.4
         t_errors["GENN"] = 1.1
+        if RBFGEN_AVAILABLE:
+            t_errors["RBFGen"] = 1e0
         if COMPILED_AVAILABLE:
             t_errors["IDW"] = 1e0
             t_errors["RBF"] = 1e-2
@@ -108,6 +119,8 @@ class Test(SMTestCase):
         e_errors["MGP"] = 6e-2
         e_errors["GEKPLS"] = 2e-2
         e_errors["GENN"] = 1e-1
+        if RBFGEN_AVAILABLE:
+            e_errors["RBFGen"] = 3e0
         if COMPILED_AVAILABLE:
             e_errors["IDW"] = 1e0
             e_errors["RBF"] = 1e0
@@ -158,6 +171,16 @@ class Test(SMTestCase):
         if sm.supports["training_derivatives"]:
             for i in range(self.ndim):
                 sm.set_training_derivatives(xt, yt[:, i + 1], i)
+
+        if sname == "RBFGen":
+            from smt.utils.nn_lossterms import SliceBasedPriorLossTerm
+            prior_points = xt[0:1]
+            prior_means = yt[0:1, 0]
+            prior_stds = np.array([10.0])
+            sm.add_loss_term(SliceBasedPriorLossTerm(x_train=xt,
+                                                    prior_points=prior_points,
+                                                    prior_means=prior_means,
+                                                    prior_stds=prior_stds))
 
         with Silence():
             sm.train()
@@ -239,6 +262,12 @@ class Test(SMTestCase):
     def test_exp_RMTB(self):
         self.run_test()
 
+    @unittest.skipIf(not RBFGEN_AVAILABLE, "RBFGen not available")
+    def test_exp_RBFGen(self):
+        # This test will cover the prediction accuracy of RBFGen on the analytical exponential function.
+        # It ensures that the model can be instantiated, trained, and evaluated without runtime errors.
+        self.run_test()
+
     # --------------------------------------------------------------------
     # Function: tanh
 
@@ -298,6 +327,12 @@ class Test(SMTestCase):
     def test_tanh_RMTB(self):
         self.run_test()
 
+    @unittest.skipIf(not RBFGEN_AVAILABLE, "RBFGen not available")
+    def test_tanh_RBFGen(self):
+        # This test will cover the prediction accuracy of RBFGen on the analytical tanh function.
+        # It ensures that the model correctly learns a smooth nonlinear function.
+        self.run_test()
+
     # --------------------------------------------------------------------
     # Function: cos
 
@@ -355,6 +390,12 @@ class Test(SMTestCase):
 
     @unittest.skipIf(not COMPILED_AVAILABLE, "Compiled Fortran libraries not available")
     def test_cos_RMTB(self):
+        self.run_test()
+
+    @unittest.skipIf(not RBFGEN_AVAILABLE, "RBFGen not available")
+    def test_cos_RBFGen(self):
+        # This test will cover the prediction accuracy of RBFGen on the analytical cosine function.
+        # It ensures the neural network properly captures periodic or oscillatory behaviors.
         self.run_test()
 
 

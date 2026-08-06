@@ -160,6 +160,11 @@ class RBFGen(SurrogateModel):
         batchsize = self.options["batch_size"]
         alpha_scale = self.options["alpha_scale"]
 
+        if not self.loss_terms:
+            raise RuntimeError(
+                "RBFGen needs to have at least one loss term added to it before it can be trained."
+            )
+
         for ep in range(epochs):
             latent_vars = torch.randn(batchsize, latent_dim)
             alpha = self.generator(latent_vars)
@@ -221,7 +226,7 @@ class RBFGen(SurrogateModel):
         Phi_q = rbf_features(x, C, eps)
         # W is (K, m), Phi_q is (nq, m)
         # We want mean prediction
-        return (W @ Phi_q.T).mean(axis=0)
+        return (W @ Phi_q.T).mean(axis=0).reshape(-1, 1)
 
     def _predict_variances(self, x):
         """
