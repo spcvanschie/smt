@@ -2,10 +2,8 @@ import numpy as np
 import unittest
 
 from smt.surrogate_models.rbfgen import RBFGEN_AVAILABLE
-
-if RBFGEN_AVAILABLE:
-    from smt.surrogate_models import RBFGen
-    from smt.utils.nn_lossterms import MonotonicityLossTerm, PositivityLossTerm
+from smt.surrogate_models import RBFGen
+from smt.utils.nn_lossterms import MonotonicityLossTerm, PositivityLossTerm
 
 
 class TestRBFGen(unittest.TestCase):
@@ -18,7 +16,9 @@ class TestRBFGen(unittest.TestCase):
         xt = np.linspace(0, 2 * np.pi, 20).reshape(-1, 1)
         yt = np.sin(xt) + 1.5
 
-        sm = RBFGen(epochs=200, learning_rate=5e-2, rbf_m_centers=20, print_global=False)
+        sm = RBFGen(
+            epochs=200, learning_rate=5e-2, rbf_m_centers=20, print_global=False
+        )
         sm.set_training_values(xt, yt)
         sm.add_loss_term(PositivityLossTerm(x_train=xt, loss_term_weight=0.0))
         sm.train()

@@ -114,7 +114,6 @@ class RBFGen(SurrogateModel):
 
         self.loss_terms = []
 
-
     def _train(self, K_ensemble=150):
         """
         Train the model
@@ -140,7 +139,6 @@ class RBFGen(SurrogateModel):
             rbf.set_training_values(xt, yt)
             rbf.train()
             self.options["rbf_surrogate"] = rbf
-
 
         # Setup loss terms
         for loss_term in self.loss_terms:

@@ -23,9 +23,11 @@ from smt.surrogate_models import (
     LS,
     MGP,
     QP,
+    RBFGen,
     DesignSpace,
 )
 from smt.surrogate_models.gpx import GPX_AVAILABLE
+from smt.surrogate_models.rbfgen import RBFGEN_AVAILABLE
 from smt.utils.misc import compute_relative_error
 from smt.utils.silence import Silence
 from smt.utils.sm_test_case import SMTestCase
@@ -36,12 +38,6 @@ try:
     COMPILED_AVAILABLE = True
 except ImportError:
     COMPILED_AVAILABLE = False
-
-try:
-    from smt.surrogate_models import RBFGen
-    RBFGEN_AVAILABLE = True
-except ImportError:
-    RBFGEN_AVAILABLE = False
 
 
 print_output = False
@@ -174,13 +170,18 @@ class Test(SMTestCase):
 
         if sname == "RBFGen":
             from smt.utils.nn_lossterms import SliceBasedPriorLossTerm
+
             prior_points = xt[0:1]
             prior_means = yt[0:1, 0]
             prior_stds = np.array([10.0])
-            sm.add_loss_term(SliceBasedPriorLossTerm(x_train=xt,
-                                                    prior_points=prior_points,
-                                                    prior_means=prior_means,
-                                                    prior_stds=prior_stds))
+            sm.add_loss_term(
+                SliceBasedPriorLossTerm(
+                    x_train=xt,
+                    prior_points=prior_points,
+                    prior_means=prior_means,
+                    prior_stds=prior_stds,
+                )
+            )
 
         with Silence():
             sm.train()
